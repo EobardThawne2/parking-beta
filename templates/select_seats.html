@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Parking Slots</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">🚗 ParkEasy</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/parking">All Slots</a>
+                {% if user %}
+                    <a class="nav-link" href="/dashboard">Dashboard</a>
+                    <a class="nav-link" href="/logout">Logout</a>
+                {% else %}
+                    <a class="nav-link" href="/login">Login</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="text-center mb-4">
+            <h2 class="cinema-title">🚗 Select Your Parking Slots</h2>
+            <div class="screen-indicator">
+                <div class="screen">ENTRANCE</div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="parking-layout">
+                    <!-- VIP Section -->
+                    <div class="section-header vip-section">
+                        <div class="section-label">
+                            <span class="price-tag">₹500</span>
+                            <span class="section-name">VIP PARKING</span>
+                            <span class="available-count">({{ parking_data.vip.slots|length - parking_data.vip.booked|length }} available)</span>
+                        </div>
+                    </div>
+                    <div class="vip-slots cinema-section mb-4">
+                        {% for slot in parking_data.vip.slots %}
+                        <div class="parking-slot vip {% if slot in parking_data.vip.booked %}booked{% endif %}" 
+                             data-slot="{{ slot }}" data-type="vip" data-price="500">
+                            {{ slot }}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Executive Section -->
+                    <div class="section-header executive-section">
+                        <div class="section-label">
+                            <span class="price-tag">₹350</span>
+                            <span class="section-name">EXECUTIVE PARKING</span>
+                            <span class="available-count">({{ parking_data.executive.slots|length - parking_data.executive.booked|length }} available)</span>
+                        </div>
+                    </div>
+                    <div class="executive-slots cinema-section mb-4">
+                        {% for slot in parking_data.executive.slots[:100] %}
+                        <div class="parking-slot executive {% if slot in parking_data.executive.booked %}booked{% endif %}" 
+                             data-slot="{{ slot }}" data-type="executive" data-price="350">
+                            {{ slot[-2:] }}
+                        </div>
+                        {% if loop.index % 20 == 0 %}
+                            <div class="row-break"></div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Normal Section -->
+                    <div class="section-header normal-section">
+                        <div class="section-label">
+                            <span class="price-tag">₹320</span>
+                            <span class="section-name">NORMAL PARKING</span>
+                            <span class="available-count">({{ parking_data.normal.slots|length - parking_data.normal.booked|length }} available)</span>
+                        </div>
+                    </div>
+                    <div class="normal-slots cinema-section mb-4">
+                        {% for slot in parking_data.normal.slots %}
+                        <div class="parking-slot normal {% if slot in parking_data.normal.booked %}booked{% endif %}" 
+                             data-slot="{{ slot }}" data-type="normal" data-price="320">
+                            {{ slot }}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="legend-section text-center mt-4">
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <span class="legend-box available"></span>
+                                <span>Available</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-box selected"></span>
+                                <span>Selected</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-box booked"></span>
+                                <span>Booked</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="booking-panel sticky-top">
+                    <div class="booking-card">
+                        <div class="booking-header">
+                            <div class="vehicle-icon">🚗</div>
+                            <h3 class="booking-title">Booking Summary</h3>
+                        </div>
+                        
+                        <div class="booking-body">
+                            <div class="selected-slots-section">
+                                <h6 class="section-title">Selected Slots</h6>
+                                <div id="selectedSlots" class="selected-slots-container">
+                                    <div class="no-selection">No slots selected</div>
+                                </div>
+                            </div>
+                            
+                            <div class="pricing-breakdown">
+                                <div class="price-row" id="vipPrice" style="display: none;">
+                                    <span class="slot-type">VIP Parking</span>
+                                    <span class="slot-count">0 × ₹500</span>
+                                    <span class="slot-total">₹0</span>
+                                </div>
+                                <div class="price-row" id="executivePrice" style="display: none;">
+                                    <span class="slot-type">Executive Parking</span>
+                                    <span class="slot-count">0 × ₹350</span>
+                                    <span class="slot-total">₹0</span>
+                                </div>
+                                <div class="price-row" id="normalPrice" style="display: none;">
+                                    <span class="slot-type">Normal Parking</span>
+                                    <span class="slot-count">0 × ₹320</span>
+                                    <span class="slot-total">₹0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="divider"></div>
+                            
+                            <div class="total-section">
+                                <div class="total-row">
+                                    <span class="total-label">Subtotal</span>
+                                    <span class="total-amount" id="subtotalPrice">₹0</span>
+                                </div>
+                                <div class="fee-row">
+                                    <span class="fee-label">Platform Fee</span>
+                                    <span class="fee-amount" id="platformFee">₹0</span>
+                                </div>
+                                <div class="fee-row" id="nightSurchargeRow" style="display: none;">
+                                    <span class="fee-label">Night Surcharge</span>
+                                    <span class="fee-amount" id="nightSurcharge">₹0</span>
+                                </div>
+                                <div class="final-total">
+                                    <span class="final-label">Grand Total</span>
+                                    <span class="final-amount" id="grandTotal">₹0</span>
+                                </div>
+                            </div>
+                            
+                            <button class="book-button" id="bookSlots" disabled>
+                                <span class="button-text">Select Slots to Continue</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-info">
+                        <div class="info-item">
+                            <i class="icon">🔒</i>
+                            <span>Secure booking with instant confirmation</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="icon">⏰</i>
+                            <span>24/7 customer support</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">🎉 Booking Confirmed!</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                </div>
+                <div class="modal-footer">
+                    <a href="/" class="btn btn-primary">Book Another</a>
+                    <a href="/parking" class="btn btn-outline-light">View All Slots</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedSlots = {
+            vip: [],
+            executive: [],
+            normal: []
+        };
+        let totalAmount = 0;
+        let feeBreakdown = {
+            base_amount: 0,
+            platform_fee: 0,
+            night_surcharge: 0,
+            total_fees: 0,
+            grand_total: 0,
+            is_night_time: false
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if it's night time and show surcharge notice
+            checkNightTime();
+            
+            // Parking slot selection
+            document.querySelectorAll('.parking-slot:not(.booked)').forEach(slot => {
+                slot.addEventListener('click', function() {
+                    const slotId = this.dataset.slot;
+                    const slotType = this.dataset.type;
+                    const slotPrice = parseInt(this.dataset.price);
+                    
+                    if (this.classList.contains('selected')) {
+                        // Deselect slot
+                        this.classList.remove('selected');
+                        selectedSlots[slotType] = selectedSlots[slotType].filter(s => s !== slotId);
+                    } else {
+                        // Select slot
+                        this.classList.add('selected');
+                        selectedSlots[slotType].push(slotId);
+                    }
+                    
+                    updateBookingSummary();
+                });
+            });
+
+            // Book slots
+            document.getElementById('bookSlots').addEventListener('click', function() {
+                const allSelectedSlots = [...selectedSlots.vip, ...selectedSlots.executive, ...selectedSlots.normal];
+                
+                if (allSelectedSlots.length === 0) {
+                    alert('Please select at least one slot');
+                    return;
+                }
+
+                // Prepare booking data
+                const bookingData = [];
+                if (selectedSlots.vip.length > 0) {
+                    bookingData.push({ type: 'vip', slots: selectedSlots.vip });
+                }
+                if (selectedSlots.executive.length > 0) {
+                    bookingData.push({ type: 'executive', slots: selectedSlots.executive });
+                }
+                if (selectedSlots.normal.length > 0) {
+                    bookingData.push({ type: 'normal', slots: selectedSlots.normal });
+                }
+
+                // Process each booking type
+                processBookings(bookingData, 0, allSelectedSlots);
+            });
+        });
+
+        function checkNightTime() {
+            const currentHour = new Date().getHours();
+            const isNightTime = currentHour >= 0 && currentHour < 5;
+            
+            if (isNightTime) {
+                // Show night surcharge notification
+                const nightNotice = document.createElement('div');
+                nightNotice.className = 'alert alert-info night-notice';
+                nightNotice.innerHTML = `
+                    <strong>🌙 Night Booking:</strong> A ₹12 surcharge applies for bookings between midnight and 5 AM.
+                `;
+                document.querySelector('.booking-body').insertBefore(nightNotice, document.querySelector('.selected-slots-section'));
+            }
+        }
+
+        function processBookings(bookingData, index, allSelectedSlots) {
+            if (index >= bookingData.length) {
+                // All bookings processed successfully
+                showSuccessModal(allSelectedSlots, feeBreakdown);
+                return;
+            }
+
+            const currentBooking = bookingData[index];
+            
+            fetch('/api/book-slots', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(currentBooking)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Store pricing info from the last booking
+                    if (data.pricing) {
+                        feeBreakdown = data.pricing;
+                    }
+                    
+                    // Mark slots as booked
+                    currentBooking.slots.forEach(slotId => {
+                        const slotElement = document.querySelector(`[data-slot="${slotId}"]`);
+                        slotElement.classList.remove('selected');
+                        slotElement.classList.add('booked');
+                        slotElement.removeEventListener('click', arguments.callee);
+                    });
+                    
+                    // Process next booking
+                    processBookings(bookingData, index + 1, allSelectedSlots);
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while booking');
+            });
+        }
+
+        function showSuccessModal(allSelectedSlots, pricing) {
+            let nightSurchargeText = '';
+            if (pricing.night_surcharge > 0) {
+                nightSurchargeText = `<p><strong>Night Surcharge:</strong> ₹${pricing.night_surcharge}</p>`;
+            }
+            
+            document.getElementById('modalBody').innerHTML = `
+                <div class="success-content">
+                    <div class="success-icon">✅</div>
+                    <h4>Booking Confirmed!</h4>
+                    <p><strong>Slots Booked:</strong> ${allSelectedSlots.join(', ')}</p>
+                    <div class="pricing-details">
+                        <p><strong>Base Amount:</strong> ₹${pricing.base_amount}</p>
+                        <p><strong>Platform Fee:</strong> ₹${pricing.platform_fee}</p>
+                        ${nightSurchargeText}
+                        <hr>
+                        <p class="final-amount"><strong>Total Paid:</strong> ₹${pricing.grand_total}</p>
+                    </div>
+                    <p class="text-success">Your parking slots have been successfully reserved.</p>
+                </div>
+            `;
+            new bootstrap.Modal(document.getElementById('successModal')).show();
+            
+            // Reset selection
+            selectedSlots = { vip: [], executive: [], normal: [] };
+            updateBookingSummary();
+        }
+
+        function updateBookingSummary() {
+            const container = document.getElementById('selectedSlots');
+            const totalSlots = selectedSlots.vip.length + selectedSlots.executive.length + selectedSlots.normal.length;
+            
+                            if (totalSlots === 0) {
+                container.innerHTML = '<div class="no-selection">No slots selected</div>';
+                document.getElementById('bookSlots').disabled = true;
+                document.querySelector('.button-text').textContent = 'Select Slots to Continue';
+                
+                // Reset fees display only when no slots are selected
+                document.getElementById('subtotalPrice').textContent = '₹0';
+                document.getElementById('platformFee').textContent = '₹0';
+                document.getElementById('nightSurcharge').textContent = '₹0';
+                document.getElementById('grandTotal').textContent = '₹0';
+                document.getElementById('nightSurchargeRow').style.display = 'none';
+            } else {
+                container.innerHTML = '';
+                
+                // Add selected slots by type
+                Object.keys(selectedSlots).forEach(type => {
+                    selectedSlots[type].forEach(slot => {
+                        const badge = document.createElement('span');
+                        badge.className = `slot-badge ${type}`;
+                        badge.textContent = slot;
+                        container.appendChild(badge);
+                    });
+                });
+                
+                document.getElementById('bookSlots').disabled = false;
+                document.querySelector('.button-text').textContent = `Book ${totalSlots} Slot${totalSlots > 1 ? 's' : ''}`;
+            }
+            
+            // Update pricing breakdown
+            updatePricingBreakdown();
+        }
+
+        function updatePricingBreakdown() {
+            const prices = { vip: 500, executive: 350, normal: 320 };
+            totalAmount = 0;
+            
+            console.log('Updating pricing breakdown...');
+            console.log('Selected slots:', selectedSlots);
+            
+            Object.keys(selectedSlots).forEach(type => {
+                const count = selectedSlots[type].length;
+                const price = prices[type];
+                const total = count * price;
+                const priceRow = document.getElementById(`${type}Price`);
+                
+                console.log(`${type}: count=${count}, price=${price}, total=${total}`);
+                
+                if (count > 0) {
+                    priceRow.style.display = 'flex';
+                    priceRow.querySelector('.slot-count').textContent = `${count} × ₹${price}`;
+                    priceRow.querySelector('.slot-total').textContent = `₹${total}`;
+                    totalAmount += total;
+                } else {
+                    priceRow.style.display = 'none';
+                }
+            });
+            
+            console.log('Total amount:', totalAmount);
+            
+            // Calculate fees using API
+            if (totalAmount > 0) {
+                console.log('Calling fee calculation API...');
+                fetch('/api/calculate-fees', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ base_amount: totalAmount })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Fee calculation response:', data);
+                    document.getElementById('subtotalPrice').textContent = `₹${data.base_amount}`;
+                    document.getElementById('platformFee').textContent = `₹${data.platform_fee}`;
+                    document.getElementById('grandTotal').textContent = `₹${data.grand_total}`;
+                    
+                    // Show/hide night surcharge
+                    const nightRow = document.getElementById('nightSurchargeRow');
+                    if (data.night_surcharge > 0) {
+                        document.getElementById('nightSurcharge').textContent = `₹${data.night_surcharge}`;
+                        nightRow.style.display = 'flex';
+                    } else {
+                        nightRow.style.display = 'none';
+                    }
+                    
+                    feeBreakdown = data;
+                })
+                .catch(error => {
+                    console.error('Error calculating fees:', error);
+                    // Fallback to manual calculation if API fails
+                    document.getElementById('subtotalPrice').textContent = `₹${totalAmount}`;
+                    document.getElementById('platformFee').textContent = '₹18';
+                    
+                    const currentHour = new Date().getHours();
+                    const isNightTime = currentHour >= 0 && currentHour < 5;
+                    const nightSurcharge = isNightTime ? 12 : 0;
+                    const grandTotal = totalAmount + 18 + nightSurcharge;
+                    
+                    document.getElementById('grandTotal').textContent = `₹${grandTotal}`;
+                    
+                    const nightRow = document.getElementById('nightSurchargeRow');
+                    if (nightSurcharge > 0) {
+                        document.getElementById('nightSurcharge').textContent = `₹${nightSurcharge}`;
+                        nightRow.style.display = 'flex';
+                    } else {
+                        nightRow.style.display = 'none';
+                    }
+                });
+            } else {
+                console.log('No slots selected, resetting fees');
+                // Reset all fees when no slots selected
+                document.getElementById('subtotalPrice').textContent = '₹0';
+                document.getElementById('platformFee').textContent = '₹0';
+                document.getElementById('nightSurcharge').textContent = '₹0';
+                document.getElementById('grandTotal').textContent = '₹0';
+                document.getElementById('nightSurchargeRow').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

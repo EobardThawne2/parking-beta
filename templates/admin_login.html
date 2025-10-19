@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - ParkEasy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .auth-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .auth-header h2 {
+            color: #fff;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .auth-header p {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .admin-badge {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 20px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+        .form-control {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 12px 15px;
+            border-radius: 10px;
+        }
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #ff6b6b;
+            color: #fff;
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
+        }
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .form-label {
+            color: #fff;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .btn-admin-login {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            border: none;
+            color: white;
+            padding: 12px;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        .btn-admin-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+        .auth-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .auth-links a {
+            color: #ff6b6b;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .auth-links a:hover {
+            color: #ee5a52;
+        }
+        .alert {
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .info-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="admin-badge">🔐 ADMIN ACCESS</div>
+                <h2>🚗 ParkEasy</h2>
+                <p>Admin & Staff Portal</p>
+            </div>
+
+            <div class="info-box">
+                <strong>Default Credentials:</strong><br>
+                Admin: admin@parkeasy.com / admin123<br>
+                Staff: staff@parkeasy.com / staff123
+            </div>
+
+            <div id="message" class="alert d-none"></div>
+
+            <form id="adminLoginForm">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="email" placeholder="Enter your admin email" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
+                </div>
+
+                <button type="submit" class="btn btn-admin-login">
+                    <span id="btnText">Admin Login</span>
+                    <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            </form>
+
+            <div class="auth-links mt-4">
+                <a href="/">← Back to Home</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const btn = document.querySelector('.btn-admin-login');
+            const btnText = document.getElementById('btnText');
+            const btnSpinner = document.getElementById('btnSpinner');
+            const messageDiv = document.getElementById('message');
+
+            btn.disabled = true;
+            btnText.classList.add('d-none');
+            btnSpinner.classList.remove('d-none');
+            messageDiv.classList.add('d-none');
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/admin-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    messageDiv.className = 'alert alert-success';
+                    messageDiv.textContent = 'Login successful! Redirecting to admin panel...';
+                    messageDiv.classList.remove('d-none');
+
+                    setTimeout(() => {
+                        window.location.href = '/admin';
+                    }, 1000);
+                } else {
+                    messageDiv.className = 'alert alert-danger';
+                    messageDiv.textContent = data.message || 'Login failed';
+                    messageDiv.classList.remove('d-none');
+
+                    btn.disabled = false;
+                    btnText.classList.remove('d-none');
+                    btnSpinner.classList.add('d-none');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                messageDiv.className = 'alert alert-danger';
+                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.classList.remove('d-none');
+
+                btn.disabled = false;
+                btnText.classList.remove('d-none');
+                btnSpinner.classList.add('d-none');
+            }
+        });
+    </script>
+</body>
+</html>

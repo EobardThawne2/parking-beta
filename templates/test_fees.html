@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fee Calculator Test</title>
+</head>
+<body>
+    <h1>ParkEasy Fee Calculator Test</h1>
+    
+    <div>
+        <h3>Test Static Fees:</h3>
+        <p>Platform Fee: ₹18 (static)</p>
+        <p>Night Surcharge: ₹12 (static, only between midnight-5AM)</p>
+    </div>
+    
+    <div>
+        <h3>Example Calculations:</h3>
+        <p><strong>Day Booking (₹1000 base):</strong></p>
+        <ul>
+            <li>Base Amount: ₹1000</li>
+            <li>Platform Fee: ₹18</li>
+            <li>Night Surcharge: ₹0</li>
+            <li><strong>Total: ₹1018</strong></li>
+        </ul>
+        
+        <p><strong>Night Booking (₹1000 base, midnight-5AM):</strong></p>
+        <ul>
+            <li>Base Amount: ₹1000</li>
+            <li>Platform Fee: ₹18</li>
+            <li>Night Surcharge: ₹12</li>
+            <li><strong>Total: ₹1030</strong></li>
+        </ul>
+    </div>
+    
+    <div>
+        <a href="/select-seats" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+            Test Booking Interface
+        </a>
+    </div>
+    
+    <script>
+        // Test the API
+        fetch('/api/calculate-fees', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ base_amount: 1000 })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Fee calculation test:', data);
+            const testResult = document.createElement('div');
+            testResult.innerHTML = `
+                <h3>Live API Test (₹1000 base):</h3>
+                <p>Platform Fee: ₹${data.platform_fee}</p>
+                <p>Night Surcharge: ₹${data.night_surcharge}</p>
+                <p><strong>Grand Total: ₹${data.grand_total}</strong></p>
+                <p>Is Night Time: ${data.is_night_time ? 'Yes' : 'No'}</p>
+            `;
+            document.body.appendChild(testResult);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    </script>
+</body>
+</html>

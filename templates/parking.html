@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Parking Slots</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">🚗 ParkEasy</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/select-seats">Book Slots</a>
+                {% if user %}
+                    <a class="nav-link" href="/dashboard">Dashboard</a>
+                    <a class="nav-link" href="/logout">Logout</a>
+                {% else %}
+                    <a class="nav-link" href="/login">Login</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="text-center mb-4">
+            <h2>Parking Layout</h2>
+        </div>
+        
+        <div class="parking-overview">
+            <!-- VIP Section -->
+            <div class="section-header vip-section text-center">
+                <h4>₹500 VIP</h4>
+            </div>
+            <div class="vip-slots-overview mb-5">
+                {% for slot in parking_data.vip.slots %}
+                <div class="parking-slot vip {% if slot in parking_data.vip.booked %}booked{% else %}available{% endif %}">
+                    {{ slot }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Executive Section -->
+            <div class="section-header executive-section text-center">
+                <h4>₹350 EXECUTIVE</h4>
+            </div>
+            <div class="executive-slots-overview mb-5">
+                {% for slot in parking_data.executive.slots %}
+                <div class="parking-slot executive {% if slot in parking_data.executive.booked %}booked{% else %}available{% endif %}">
+                    {{ slot.replace('E', '').replace('0', '') }}
+                </div>
+                {% if loop.index % 20 == 0 %}
+                    <div class="row-break"></div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            
+            <!-- Normal Section -->
+            <div class="section-header normal-section text-center">
+                <h4>₹320 NORMAL</h4>
+            </div>
+            <div class="normal-slots-overview mb-5">
+                {% for slot in parking_data.normal.slots %}
+                <div class="parking-slot normal {% if slot in parking_data.normal.booked %}booked{% else %}available{% endif %}">
+                    {{ slot }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="legend text-center mt-4">
+            <div class="d-flex justify-content-center">
+                <div class="me-4"><span class="legend-box available"></span> Available</div>
+                <div><span class="legend-box booked"></span> Booked</div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <div class="btn-group" role="group">
+                <a href="/select-seats" class="btn btn-warning">Book VIP</a>
+                <a href="/select-seats" class="btn btn-info">Book Executive</a>
+                <a href="/select-seats" class="btn btn-success">Book Normal</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
