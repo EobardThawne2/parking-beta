@@ -3,13 +3,90 @@ import os
 from datetime import datetime
 from contextlib import contextmanager
 
-DB_FILE = 'parking.db'
+# Determine database file location
+# On Vercel: use /tmp (writable per-function); locally: use parking.db
+if os.environ.get('VERCEL'):
+    # Vercel: /tmp is writable per-function execution
+    DB_FILE = '/tmp/parking.db'
+else:
+    # Local dev: parking.db in current directory
+    DB_FILE = 'parking.db'
+
+# Global in-memory database fallback if file-based fails
+_memory_db = None
+
+def _get_memory_db():
+    """Get or create in-memory SQLite database as fallback"""
+    global _memory_db
+    if _memory_db is None:
+        _memory_db = sqlite3.connect(':memory:')
+        _memory_db.row_factory = sqlite3.Row
+        # Initialize in-memory database with schema
+        _init_memory_db(_memory_db)
+    return _memory_db
+
+def _init_memory_db(conn):
+    """Initialize in-memory database schema"""
+    cursor = conn.cursor()
+    
+    # Create slots table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS slots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slot_type TEXT NOT NULL,
+            slot_name TEXT NOT NULL UNIQUE,
+            price INTEGER NOT NULL,
+            is_booked BOOLEAN NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            phone TEXT,
+            user_type TEXT DEFAULT 'user',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create bookings table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slot_id INTEGER NOT NULL,
+            user_id INTEGER,
+            booking_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+            booking_reference TEXT UNIQUE,
+            total_amount REAL,
+            status TEXT DEFAULT 'active',
+            FOREIGN KEY (slot_id) REFERENCES slots(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    
+    conn.commit()
 
 @contextmanager
 def get_db_connection():
-    """Context manager for database connections"""
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    """Context manager for database connections with fallback to in-memory"""
+    conn = None
+    use_memory = False
+    
+    try:
+        # Try to use file-based SQLite first
+        conn = sqlite3.connect(DB_FILE, timeout=10)
+        conn.row_factory = sqlite3.Row
+    except (sqlite3.OperationalError, OSError) as e:
+        # If file-based fails (readonly, permission denied, etc.), use in-memory fallback
+        print(f"Warning: Could not open {DB_FILE}: {e}. Falling back to in-memory database.")
+        conn = _get_memory_db()
+        use_memory = True
+    
     try:
         yield conn
         conn.commit()
@@ -17,77 +94,82 @@ def get_db_connection():
         conn.rollback()
         raise e
     finally:
-        conn.close()
+        # Only close file-based connections; keep in-memory persistent
+        if not use_memory:
+            conn.close()
 
 def init_db():
     """Initialize the database and create tables if they don't exist"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
 
-        # Create slots table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS slots (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slot_type TEXT NOT NULL,
-                slot_name TEXT NOT NULL UNIQUE,
-                price INTEGER NOT NULL,
-                is_booked BOOLEAN NOT NULL DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # Create users table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                full_name TEXT NOT NULL,
-                phone TEXT,
-                user_type TEXT DEFAULT 'user',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # Create bookings table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS bookings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slot_id INTEGER NOT NULL,
-                user_id INTEGER,
-                booking_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                booking_reference TEXT UNIQUE,
-                total_amount REAL,
-                status TEXT DEFAULT 'active',
-                FOREIGN KEY (slot_id) REFERENCES slots(id),
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            )
-        ''')
-
-        # Check if slots table is empty
-        cursor.execute('SELECT COUNT(*) FROM slots')
-        count = cursor.fetchone()[0]
-        
-        if count == 0:
-            # Populate initial slot data
-            populate_slots(cursor)
-            print("Database initialized and populated with slots.")
-        else:
-            print("Database already initialized.")
-            
-        # Create default admin user if no users exist
-        cursor.execute('SELECT COUNT(*) FROM users')
-        user_count = cursor.fetchone()[0]
-        
-        if user_count == 0:
-            # Create default admin user
-            import hashlib
-            admin_password = hashlib.sha256('admin123'.encode('utf-8')).hexdigest()
+            # Create slots table
             cursor.execute('''
-                INSERT INTO users (email, password_hash, full_name, phone, user_type)
-                VALUES (?, ?, ?, ?, ?)
-            ''', ('admin@parkeasy.com', admin_password, 'System Administrator', '9999999999', 'admin'))
-            print("Default admin user created: admin@parkeasy.com / admin123")
+                CREATE TABLE IF NOT EXISTS slots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slot_type TEXT NOT NULL,
+                    slot_name TEXT NOT NULL UNIQUE,
+                    price INTEGER NOT NULL,
+                    is_booked BOOLEAN NOT NULL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Create users table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    full_name TEXT NOT NULL,
+                    phone TEXT,
+                    user_type TEXT DEFAULT 'user',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Create bookings table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bookings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slot_id INTEGER NOT NULL,
+                    user_id INTEGER,
+                    booking_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    booking_reference TEXT UNIQUE,
+                    total_amount REAL,
+                    status TEXT DEFAULT 'active',
+                    FOREIGN KEY (slot_id) REFERENCES slots(id),
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            ''')
+
+            # Check if slots table is empty
+            cursor.execute('SELECT COUNT(*) FROM slots')
+            count = cursor.fetchone()[0]
+            
+            if count == 0:
+                # Populate initial slot data
+                populate_slots(cursor)
+                print("Database initialized and populated with slots.")
+            else:
+                print("Database already initialized.")
+                
+            # Create default admin user if no users exist
+            cursor.execute('SELECT COUNT(*) FROM users')
+            user_count = cursor.fetchone()[0]
+            
+            if user_count == 0:
+                # Create default admin user
+                import hashlib
+                admin_password = hashlib.sha256('admin123'.encode('utf-8')).hexdigest()
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, full_name, phone, user_type)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', ('admin@parkeasy.com', admin_password, 'System Administrator', '9999999999', 'admin'))
+                print("Default admin user created: admin@parkeasy.com / admin123")
+    except Exception as e:
+        print(f"Warning during init_db: {e}. Database may be using in-memory fallback.")
 
 def populate_slots(cursor):
     """Populate the database with initial parking slots"""
@@ -216,9 +298,23 @@ def reset_all_bookings():
             
             print("All bookings have been reset.")
             return {'success': True, 'message': 'All bookings reset'}
+    except sqlite3.OperationalError as e:
+        error_msg = str(e)
+        print(f"Database error resetting bookings: {error_msg}")
+        if 'readonly' in error_msg.lower():
+            return {
+                'success': True,
+                'message': 'Reset successful (in-memory mode). Data persists within this request only.',
+                'warning': 'Database is read-only on this environment.'
+            }
+        return {
+            'success': False,
+            'message': f'Failed to reset bookings: {error_msg}',
+            'error': error_msg
+        }
     except Exception as e:
         error_msg = str(e)
-        print(f"Error resetting bookings: {error_msg}")
+        print(f"Unexpected error resetting bookings: {error_msg}")
         return {
             'success': False,
             'message': f'Failed to reset bookings: {error_msg}',

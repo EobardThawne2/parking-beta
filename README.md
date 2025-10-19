@@ -1,36 +1,174 @@
-# 🚗 ParkEasy - Parking Slot Booking System
+# 🚗 ParkEasy — Cinema-Style Parking Slot Booking System
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
-[![Bootstrap](https://img.shields.io/badge/Bootstrap-5.1.3-purple.svg)](https://getbootstrap.com/)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-2.x-green.svg)](https://flask.palletsprojects.com/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-blue)](https://parking-beta-ten.vercel.app)
 
-> A modern, cinema-style parking slot booking system built with Flask and inspired by BookMyShow's elegant UI design.
+Modern parking reservation app with BookMyShow-style UI. Supports user login, admin panel, and real-time slot booking.
 
-## 📖 Table of Contents
+**TL;DR** — Get running in 2 minutes:
 
-- [Overview](#overview)
-- [Features](#features)
-- [Demo](#demo)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [API Documentation](#api-documentation)
-- [Project Structure](#project-structure)
-- [Technologies Used](#technologies-used)
-- [Contributing](#contributing)
-- [License](#license)
+```powershell
+git clone <repo-url>
+cd "Parking V2"
+pip install -r requirements.txt
+python app.py
+# Open http://127.0.0.1:5000
+```
 
-## 🎯 Overview
+## What
 
-ParkEasy is a sophisticated parking slot booking system that provides an intuitive, cinema-style interface for reserving parking spaces. The system features three distinct parking categories with dynamic pricing, real-time availability updates, and a premium user experience designed to rival modern booking platforms.
+- **User booking**: Cinema-style seat selection, VIP/Executive/Normal pricing
+- **Admin panel**: Reset bookings, view statistics
+- **Auth system**: User registration, login, admin-only routes
+- **SQLite**: Persistent local database (with in-memory fallback for serverless)
+- **Responsive UI**: Bootstrap 5 + custom CSS animations
 
-### Key Highlights
+## Quick Start
 
-- 🎨 **BookMyShow-inspired UI** - Dark theme with gradient effects and smooth animations
-- 🏷️ **Three-tier pricing system** - VIP (₹500), Executive (₹350), and Normal (₹320) categories
-- 💰 **Dynamic fee structure** - Static platform fee (₹18) and night surcharge (₹12)
-- 📱 **Responsive design** - Optimized for desktop, tablet, and mobile devices
-- ⚡ **Real-time updates** - Instant booking confirmations and availability status
+### 1. Setup
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+### 2. Run
+
+```powershell
+python app.py
+# Starts on http://127.0.0.1:5000
+```
+
+### 3. Default Login (Admin)
+- Email: `admin@parkeasy.com`
+- Password: `admin123`
+
+## Key Features
+
+| Feature | Details |
+|---------|---------|
+| **Pricing** | VIP ₹500, Executive ₹350, Normal ₹320 + ₹18 platform fee + ₹12 night surcharge (midnight–5 AM) |
+| **Slots** | 10 VIP, 100 Executive, 11 Normal (121 total) |
+| **API** | Booking, reset, stats, auth endpoints |
+| **Deployment** | Works on Vercel (SQLite with `/tmp` fallback) and local |
+
+## Configuration
+
+Pricing in `app.py`:
+
+```python
+PLATFORM_FEE = 18
+NIGHT_SURCHARGE = 12
+parking_data = {
+    'vip': {'price': 500},
+    'executive': {'price': 350},
+    'normal': {'price': 320}
+}
+```
+
+Env vars (optional):
+
+```powershell
+$env:FLASK_ENV = 'development'
+$env:FLASK_DEBUG = '1'
+$env:SECRET_KEY = 'your-key'
+```
+
+## API Endpoints
+
+### Public
+- `GET /` — Home page
+- `POST /api/register` — User signup
+- `POST /api/login` — User login
+- `GET /api/parking-status` — All slots + availability
+
+### User (login required)
+- `POST /api/book-slots` — Book slots
+- `GET /api/my-bookings` — User's bookings
+- `POST /api/calculate-fees` — Calculate total fees
+
+### Admin (admin login required)
+- `POST /api/reset-bookings` — Clear all bookings
+- `GET /api/booking-stats` — Stats by category
+
+### Example: Book slots
+
+```bash
+curl -X POST http://127.0.0.1:5000/api/book-slots \
+  -H "Content-Type: application/json" \
+  -d '{"type": "vip", "slots": ["V1", "V2"]}'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "pricing": {
+    "base_amount": 1000,
+    "platform_fee": 18,
+    "night_surcharge": 0,
+    "grand_total": 1018
+  },
+  "booked_slots": ["V1", "V2"],
+  "booking_reference": "ABC123XYZ"
+}
+```
+
+## Files
+
+```
+app.py                 # Flask routes, API endpoints
+database.py           # SQLite queries, booking logic
+auth.py               # User auth (register, login)
+templates/            # HTML (Jinja2)
+  index.html          # Home
+  select_seats.html   # Booking UI (cinema-style)
+  admin.html          # Admin panel
+static/css/style.css  # Dark theme, animations
+```
+
+## Tech Stack
+
+- **Backend**: Flask 2.x, SQLite, Python 3.8+
+- **Frontend**: Bootstrap 5, HTML5, CSS3, Vanilla JS
+- **Auth**: SHA256 hashing, Flask sessions
+- **Deployment**: Vercel (serverless)
+
+## Development
+
+- PEP8 style for Python
+- No automated tests (add in `tests/` if needed)
+- Reset demo data: `POST /api/reset-bookings` (admin only)
+- Check logs: Watch `app.py` output
+
+## Known Issues
+
+- **SQLite on Vercel**: Uses `/tmp/parking.db` (writable per-function) + in-memory fallback
+- **Session persistence**: User sessions reset between Vercel function invocations
+- For production + persistent state → Migrate to PostgreSQL/MongoDB (see `VERCEL_DEPLOYMENT.md`)
+
+## Deploy to Vercel
+
+```bash
+git push
+# Vercel auto-detects Flask, deploys to https://parking-beta-ten.vercel.app
+```
+
+## Contributing
+
+1. Fork repo
+2. Branch: `git checkout -b feat/new-feature`
+3. Commit: `git commit -m "Add feature"`
+4. Push & PR
+
+Include: motivation, changes, test steps.
+
+## License
+
+MIT — See `LICENSE`
 # 🚗 ParkEasy — Parking Slot Booking System
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
