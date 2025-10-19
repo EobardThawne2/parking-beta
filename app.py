@@ -288,8 +288,20 @@ def time_info():
 @admin_required
 def reset_bookings():
     """API endpoint to reset all bookings (admin only)"""
-    result = database.reset_all_bookings()
-    return jsonify(result)
+    try:
+        result = database.reset_all_bookings()
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Error in reset_bookings endpoint: {error_msg}")
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {error_msg}',
+            'error': error_msg
+        }), 500
 
 @app.route('/api/booking-stats')
 def booking_stats():

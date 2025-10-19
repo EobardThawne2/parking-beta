@@ -130,22 +130,48 @@
 
             fetch('/api/reset-bookings', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showMessage('All bookings have been reset successfully!', 'success');
-                    refreshStats();
-                } else {
-                    showMessage('Error resetting bookings', 'danger');
+            .then(async response => {
+                // Log status for debugging
+                console.log('Reset response status:', response.status, response.statusText);
+
+                // Attempt to read as JSON first
+                const contentType = response.headers.get('Content-Type') || '';
+                if (contentType.includes('application/json')) {
+                    const data = await response.json();
+                    return { response, data };
                 }
+
+                // If not JSON, read as text for diagnostics
+                const text = await response.text();
+                return { response, text };
+            })
+            .then(({ response, data, text }) => {
+                if (data) {
+                    if (response.ok && data.success) {
+                        showMessage('All bookings have been reset successfully!', 'success');
+                        refreshStats();
+                        return;
+                    }
+                    // JSON error
+                    console.warn('Reset returned JSON error:', data);
+                    showMessage((data && (data.message || data.error)) || 'Error resetting bookings', 'danger');
+                    return;
+                }
+
+                // Non-JSON response (likely HTML or redirect)
+                console.warn('Reset returned non-JSON response:', response.status, text);
+                showMessage('Reset failed: server returned non-JSON response (see console). HTTP ' + response.status, 'danger');
             })
             .catch(error => {
-                console.error('Error:', error);
-                showMessage('Error resetting bookings', 'danger');
+                console.error('Fetch error during reset:', error);
+                showMessage('Error resetting bookings: ' + (error.message || ''), 'danger');
             });
         }
 

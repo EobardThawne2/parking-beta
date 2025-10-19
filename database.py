@@ -204,17 +204,26 @@ def book_slots(slot_type, slots_to_book, user_id=None, total_amount=0):
 
 def reset_all_bookings():
     """Reset all bookings, marking all slots as available"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        
-        # Mark all slots as not booked
-        cursor.execute('UPDATE slots SET is_booked = 0')
-        
-        # Clear the bookings table
-        cursor.execute('DELETE FROM bookings')
-        
-        print("All bookings have been reset.")
-        return {'success': True, 'message': 'All bookings reset'}
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Mark all slots as not booked
+            cursor.execute('UPDATE slots SET is_booked = 0')
+            
+            # Clear the bookings table
+            cursor.execute('DELETE FROM bookings')
+            
+            print("All bookings have been reset.")
+            return {'success': True, 'message': 'All bookings reset'}
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Error resetting bookings: {error_msg}")
+        return {
+            'success': False,
+            'message': f'Failed to reset bookings: {error_msg}',
+            'error': error_msg
+        }
 
 def get_booking_stats():
     """Get statistics about bookings"""
