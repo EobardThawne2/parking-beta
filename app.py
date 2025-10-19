@@ -25,7 +25,12 @@ def admin_required(f):
     """Decorator to require admin access"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # If not logged in, return JSON for API calls, otherwise redirect to admin login page
         if 'user_id' not in session:
+            # Detect API requests (simple heuristic) and AJAX requests
+            wants_json = request.path.startswith('/api/') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
+            if wants_json:
+                return jsonify({'error': 'Authentication required'}), 401
             return redirect(url_for('admin_login'))
         user = auth.get_user_by_id(session['user_id'])
         if not user or user['user_type'] not in ['admin', 'staff']:
