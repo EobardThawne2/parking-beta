@@ -61,7 +61,7 @@ def _init_memory_db(conn):
             slot_id INTEGER NOT NULL,
             user_id INTEGER,
             booking_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-            booking_reference TEXT UNIQUE,
+            booking_reference TEXT,
             total_amount REAL,
             status TEXT DEFAULT 'active',
             FOREIGN KEY (slot_id) REFERENCES slots(id),
@@ -136,13 +136,64 @@ def init_db():
                     slot_id INTEGER NOT NULL,
                     user_id INTEGER,
                     booking_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    booking_reference TEXT UNIQUE,
+                    booking_reference TEXT,
                     total_amount REAL,
                     status TEXT DEFAULT 'active',
                     FOREIGN KEY (slot_id) REFERENCES slots(id),
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 )
             ''')
+
+            # Migration: if a UNIQUE index exists on booking_reference (older schema), recreate table without UNIQUE
+            try:
+                cursor.execute("PRAGMA index_list('bookings')")
+                indexes = cursor.fetchall()
+                needs_migration = False
+                unique_index_name = None
+                for idx in indexes:
+                    # idx has columns: seq, name, unique
+                    # row_factory is sqlite3.Row so we can access by index/name
+                    if idx['unique'] == 1 or idx[2] == 1:
+                        # check index columns
+                        index_name = idx['name']
+                        cursor.execute(f"PRAGMA index_info('{index_name}')")
+                        cols = cursor.fetchall()
+                        for col in cols:
+                            if col['name'] == 'booking_reference':
+                                needs_migration = True
+                                unique_index_name = index_name
+                                break
+                    if needs_migration:
+                        break
+
+                if needs_migration:
+                    print('Migrating bookings table to remove UNIQUE constraint on booking_reference...')
+                    # Rename old table
+                    cursor.execute('ALTER TABLE bookings RENAME TO bookings_old')
+                    # Create new bookings table without UNIQUE (already ensured above, but create again to be safe)
+                    cursor.execute('''
+                        CREATE TABLE bookings (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            slot_id INTEGER NOT NULL,
+                            user_id INTEGER,
+                            booking_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            booking_reference TEXT,
+                            total_amount REAL,
+                            status TEXT DEFAULT 'active',
+                            FOREIGN KEY (slot_id) REFERENCES slots(id),
+                            FOREIGN KEY (user_id) REFERENCES users(id)
+                        )
+                    ''')
+                    # Copy data across
+                    cursor.execute('''
+                        INSERT INTO bookings (slot_id, user_id, booking_time, booking_reference, total_amount, status)
+                        SELECT slot_id, user_id, booking_time, booking_reference, total_amount, status FROM bookings_old
+                    ''')
+                    # Drop old table
+                    cursor.execute('DROP TABLE bookings_old')
+                    print('Migration complete.')
+            except Exception as e:
+                print(f"Warning during bookings table migration: {e}")
 
             # Check if slots table is empty
             cursor.execute('SELECT COUNT(*) FROM slots')
@@ -270,9 +321,10 @@ def book_slots(slot_type, slots_to_book, user_id=None, total_amount=0):
         
         # Add entries to the bookings table
         booking_time = datetime.now()
-        bookings_to_insert = [(slot_id, user_id, booking_reference, total_amount, booking_time) for slot_id in slot_ids]
+        # Insert using explicit column order matching the table definition: slot_id, user_id, booking_time, booking_reference, total_amount
+        bookings_to_insert = [(slot_id, user_id, booking_time, booking_reference, total_amount) for slot_id in slot_ids]
         cursor.executemany(
-            'INSERT INTO bookings (slot_id, user_id, booking_reference, total_amount, booking_time) VALUES (?, ?, ?, ?, ?)', 
+            'INSERT INTO bookings (slot_id, user_id, booking_time, booking_reference, total_amount) VALUES (?, ?, ?, ?, ?)', 
             bookings_to_insert
         )
         

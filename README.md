@@ -295,3 +295,12 @@ Please include: motivation, summary of changes, and any manual steps to test.
 ## License
 
 MIT — see the `LICENSE` file.
+
+---
+
+If you want, I can also:
+
+- add a short `CONTRIBUTING.md` with a PR checklist
+- add PowerShell-friendly dev tasks in a `Makefile` or `tasks.json`
+
+Changes made: trimmed and reorganized the original README into a short, developer-friendly, gitdoc-style README.
